@@ -43,7 +43,7 @@ FXPR
 ENVS
 */
 
-#include <cstring>
+#include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -54,7 +54,7 @@ struct Section;
 #pragma pack(push, 1)
 struct Index
 {
-	int unknown;
+	int wemId;
 	int offset;
 	unsigned int size;
 };
@@ -75,18 +75,6 @@ int swap32(const int dw)
 #elif _MSC_VER
 	return _byteswap_ulong(dw);
 #endif
-}
-
-std::string zero_padding(unsigned int number)
-{
-	if(number < 10)
-		return "000" + std::to_string(number);
-	else if(number < 100)
-		return "00" + std::to_string(number);
-	else if(number < 1000)
-		return "0" + std::to_string(number);
-	else
-		return std::to_string(number);
 }
 
 int main(int argc, char* argv[])
@@ -158,7 +146,7 @@ int main(int argc, char* argv[])
 	{
 		for(std::size_t i = 0; i < files.size(); ++i)
 		{
-			std::string filename = zero_padding(i + 1) + ".wem";
+			std::string filename = std::to_string(files[i].wemId) + ".wem";
 
 			std::fstream wemfile;
 			wemfile.open(filename, std::ios::out | std::ios::binary);

@@ -48,6 +48,11 @@ ENVS
 #include <iostream>
 #include <vector>
 
+#ifdef __GNUC__
+#elif _MSC_VER
+#include <windows.h>
+#endif
+
 struct Index;
 struct Section;
 
@@ -77,6 +82,13 @@ int swap32(const int dw)
 #endif
 }
 
+void MakeDirectory(std::string dirname)
+{
+#ifdef __GNUC__
+#elif _MSC_VER
+    CreateDirectory(dirname.c_str(), 0);
+#endif
+}
 int main(int argc, char* argv[])
 {
 	std::cout << "Wwise *.BNK File Extractor" << std::endl;
@@ -92,6 +104,8 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+    std::string bankfile(argv[1]);
+    bankfile = bankfile.substr(0, bankfile.find('.'));
 	std::fstream bnkfile;
 	bnkfile.open(argv[1], std::ios::binary | std::ios::in);
 
@@ -142,11 +156,13 @@ int main(int argc, char* argv[])
 	bnkfile.clear();
 
 	// Extract files
+    MakeDirectory(bankfile);
+
 	if((data_pos > 0) && (files.size() > 0))
 	{
 		for(std::size_t i = 0; i < files.size(); ++i)
 		{
-			std::string filename = std::to_string(files[i].wemId) + ".wem";
+			std::string filename = bankfile + "/" + std::to_string(files[i].wemId) + ".wem";
 
 			std::fstream wemfile;
 			wemfile.open(filename, std::ios::out | std::ios::binary);

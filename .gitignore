@@ -1,3 +1,6 @@
 *.sln
 .vs
 Debug/
+/bnkextr.vcxproj
+/bnkextr.vcxproj.user
+*.bnk

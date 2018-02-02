@@ -56,6 +56,8 @@ ENVS
 struct Index;
 struct Section;
 
+typedef unsigned int u32;
+
 #pragma pack(push, 1)
 struct Index
 {
@@ -71,7 +73,27 @@ struct Section
 	unsigned int size;
 };
 #pragma pack(pop)
+
+#pragma pack(push, 1)
+struct HircObject
+{
+    char mObjectType;
+    u32 mSize;
+};
 #pragma pack(pop)
+#pragma pack(pop)
+
+namespace Hirc
+{
+enum ObjectType
+{
+    event_action = 3,
+    event_object = 4
+    
+};
+}
+
+
 
 int swap32(const int dw)
 {
@@ -89,6 +111,14 @@ void MakeDirectory(std::string dirname)
     CreateDirectory(dirname.c_str(), 0);
 #endif
 }
+
+template<typename T>
+void bnk_read(std::fstream &file, T &a)
+{
+    file.read(reinterpret_cast<char*>(&a), sizeof(a));
+}
+
+
 int main(int argc, char* argv[])
 {
 	std::cout << "Wwise *.BNK File Extractor" << std::endl;
@@ -147,6 +177,41 @@ int main(int argc, char* argv[])
 			// Get DATA offset
 			data_pos = bnkfile.tellg();
 		}
+        else if (std::strncmp(content_section.sign, "HIRC", 4) == 0)
+        {
+            u32 objectCount;
+            bnk_read(bnkfile, objectCount);
+
+            std::ofstream outfile;
+			outfile.open("event.txt", std::ios::out);
+
+            for (unsigned int i = 0; i < objectCount; ++i)
+            {
+                HircObject object;
+                bnk_read(bnkfile, object);
+                const u32 objectPos = bnkfile.tellg();
+                if (Hirc::event_object == object.mObjectType)
+                {
+                    u32 objectId;
+                    bnk_read(bnkfile, objectId);
+                    outfile << "Event Id " << objectId << std::endl; 
+                    
+                    u32 eventCount;
+                    bnk_read(bnkfile, eventCount);
+
+                    for (u32 j = 0; j < eventCount; ++j)
+                    {
+                        u32 eventActionId;
+                        bnk_read(bnkfile, eventActionId);
+                        outfile << "  Event Action Id " << eventActionId << std::endl;
+                    }
+
+
+                }
+                bnkfile.seekg(objectPos + object.mSize);
+            }
+            outfile.close();
+        }
 
 		// Seek to the end of the section
 		bnkfile.seekg(section_pos + content_section.size);

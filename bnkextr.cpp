@@ -43,10 +43,12 @@ FXPR
 ENVS
 */
 
+#include <cstring>
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <sys/stat.h>
 
 #ifdef __GNUC__
 #elif _MSC_VER
@@ -86,11 +88,11 @@ struct HircObject
 namespace Hirc
 {
 enum ObjectType
-{
-    event_action = 3,
-    event_object = 4
-    
-};
+	{
+		sound_sfx = 2,
+		event_action = 3,
+		event_object = 4
+	};
 }
 
 
@@ -107,6 +109,7 @@ int swap32(const int dw)
 void MakeDirectory(std::string dirname)
 {
 #ifdef __GNUC__
+    mkdir(dirname.c_str());
 #elif _MSC_VER
     CreateDirectory(dirname.c_str(), 0);
 #endif
@@ -159,7 +162,22 @@ int main(int argc, char* argv[])
 		if(argc > 3)
 			content_section.size = swap32(content_section.size);
 
-		if(std::strncmp(content_section.sign, "DIDX", 4) == 0)
+		if(std::strncmp(content_section.sign, "BKHD", 4) == 0)
+		{
+			u32 bankVersion;
+			bnk_read(bnkfile, bankVersion);
+
+			u32 bankID;
+			bnk_read(bnkfile, bankID);
+
+			std::ofstream outfile2;
+			outfile2.open(bankfile + "-info.txt", std::ios::out);
+
+			outfile2 << "Bank ID: " << bankID << ", version: " << bankVersion << std::endl;
+			
+			outfile2.close();
+		}
+		else if(std::strncmp(content_section.sign, "DIDX", 4) == 0)
 		{
 			// Read files
 			for(unsigned int i = 0; i < content_section.size; i += sizeof(content_index))
@@ -171,6 +189,7 @@ int main(int argc, char* argv[])
 		else if(std::strncmp(content_section.sign, "STID", 4) == 0)
 		{
 			// To be implemented
+			std::cout << bnkfile.tellg() << std::endl;
 		}
 		else if(std::strncmp(content_section.sign, "DATA", 4) == 0)
 		{
@@ -183,33 +202,107 @@ int main(int argc, char* argv[])
             bnk_read(bnkfile, objectCount);
 
             std::ofstream outfile;
-			outfile.open("event.txt", std::ios::out);
+			outfile.open(bankfile + "-objects.txt", std::ios::out);
 
             for (unsigned int i = 0; i < objectCount; ++i)
             {
                 HircObject object;
                 bnk_read(bnkfile, object);
+
                 const u32 objectPos = bnkfile.tellg();
-                if (Hirc::event_object == object.mObjectType)
-                {
-                    u32 objectId;
-                    bnk_read(bnkfile, objectId);
-                    outfile << "Event Id " << objectId << std::endl; 
-                    
-                    u32 eventCount;
-                    bnk_read(bnkfile, eventCount);
 
-                    for (u32 j = 0; j < eventCount; ++j)
-                    {
-                        u32 eventActionId;
-                        bnk_read(bnkfile, eventActionId);
-                        outfile << "  Event Action Id " << eventActionId << std::endl;
-                    }
+				u32 objectID;
+				bnk_read(bnkfile, objectID);
 
+				switch (object.mObjectType) {
+					case (Hirc::sound_sfx):
+						outfile << "SFX ID: " << objectID << std::endl;
 
-                }
+						unsigned char unusedBytes[5];
+						bnk_read(bnkfile, unusedBytes);
+
+						// uint8_t ytpe;
+						// bnk_read(bnkfile, ytpe);
+						// outfile << "\t" << "real type: " << ytpe << std::endl;
+
+						u32 fileID;
+						bnk_read(bnkfile, fileID);
+						outfile << "\t" << "wem id: " << fileID << std::endl;
+
+						u32 sourceID;
+						bnk_read(bnkfile, sourceID);
+						outfile << "\t" << "length: " << sourceID << std::endl;
+
+						u32 fileType;
+						bnk_read(bnkfile, fileType);
+						outfile << "\t" << "type: " << fileType << std::endl;
+
+						break;
+					case (Hirc::event_action):
+						outfile << "Event Action ID: " << objectID << std::endl;
+
+						uint8_t eventActionScope;
+						bnk_read(bnkfile, eventActionScope);
+
+						uint8_t eventActionType;
+						bnk_read(bnkfile, eventActionType);
+
+						u32 eventActionObjReference;
+						bnk_read(bnkfile, eventActionObjReference);
+						outfile << "\t" << "Object Ref ID: " << eventActionObjReference << std::endl;
+
+						// bnkfile.seekg(bnkfile.tellg() + 1);
+
+						// uint8_t paramsCount;
+						// bnk_read(bnkfile, paramsCount);
+
+						// bnkfile.seekg(bnkfile.tellg() + paramsCount);
+						// bnkfile.seekg(bnkfile.tellg() + paramsCount);
+
+						// bnkfile.seekg(bnkfile.tellg() + 1);
+
+						// u32 groupID;
+						// bnk_read(bnkfile, groupID);
+						// outfile << "\t" << "state/switch group id: " << groupID << std::endl;
+
+						// u32 mainID;
+						// bnk_read(bnkfile, mainID);
+						// outfile << "\t" << "state/switch: " << mainID << std::endl;
+
+						break;
+					case (Hirc::event_object):
+						outfile << "Event Object ID: " << objectID << std::endl;
+
+						u32 eventCount;
+						bnk_read(bnkfile, eventCount);
+
+						for (u32 j = 0; j < eventCount; ++j)
+						{
+							u32 eventActionId;
+							bnk_read(bnkfile, eventActionId);
+							outfile << "\t" << "Event Action Ref ID: " << eventActionId << std::endl;
+						}
+
+						break;
+					// case (0x05):
+
+						// std::string inputStr;
+						// bnk_read(bnkfile, inputStr);
+						// bnkfile.read(reinterpret_cast<char*>(&inputStr), 8);
+
+						// std::cout << inputStr << std::endl;
+
+						// break;
+					default:
+						outfile << "unknown object: " << objectID << std::endl;
+						outfile << "\t" << "type: " << object.mObjectType << std::endl;
+
+						break;
+				}
+
                 bnkfile.seekg(objectPos + object.mSize);
             }
+
             outfile.close();
         }
 
